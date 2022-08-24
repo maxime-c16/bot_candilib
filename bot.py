@@ -11,12 +11,13 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 import urllib.request
-from config import email_link,log_link,list_keys_dep, matrix_dep_centre, l_month,tts_pageload,tts_notpageload,tts_accueil, list_dep_xpath, month, CAPTCHA_IMAGES
+from config import log_link,list_keys_dep, matrix_dep_centre, l_month,tts_pageload,tts_notpageload,tts_accueil, list_dep_xpath, month, CAPTCHA_IMAGES
 from time import sleep
 import warnings
 from webdriver_manager.chrome import ChromeDriverManager
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 from selenium.common.exceptions import NoSuchElementException
+import get_url
 #Règle générale : return 1 = succès, return 0 = Réponse captcha (faux) , return -1 = collision avec autre candidat, return -3 = aucune place trouvé , return -2 =Error NoSuchElementException, -4 = new email link
 txt_path = 'Tmp_Image/txt.png'
 merged_path ='Tmp_Image/merged_obj.png'
@@ -24,43 +25,39 @@ merged_clean_path = 'Tmp_Image/merged_clean.png'
 
 class Bot():
 	def __init__(self):
+		self.link_email = log_link
 		self.driver = webdriver.Chrome(ChromeDriverManager().install())
 		self.email = "maxime.cauchy93@gmail.com"
 		self.url_redirect = 'https://beta.interieur.gouv.fr/candilib/candidat-presignup'
 		self.driver.get(log_link)
 		sleep(tts_pageload)#pageload
 		if (self.url_redirect == self.driver.current_url):
-			self.is_expired = True
-			print("Page de login identique à la page de login précédente")
-			self.main()
-		else:
-			self.is_expired = False
-			print("Page de login différente à la page de login précédente")
-			sleep(tts_pageload)
-			value = -3
-			i=0
-			while(value == -3 or value == -2):
-				print("_____________________NOUVEAU TOUR_______________________")
-				if(i>0 and value != -2):
-					print('')
-					sleep(randint(120,130))
-				elif(value == -2):
-					self.login()
-				value = self.main()
-				i+=1
-			print("_______________________________________________________")
-			print("PLACE RESERVEE AVEC SUCCES")
-			print(str(i) + " tour(s)")
+			print ("your link " + self.link_email +" is expired, getting new one...")
+			self.link_email = self.get_email_link()
+			print ("new link : " + self.link_email)
+		sleep(tts_pageload)
+		value = -3
+		i=0
+		while(value == -3 or value == -2):
+			print("_____________________NOUVEAU TOUR_______________________")
+			if(i>0 and value != -2):
+				print('')
+				sleep(randint(120,130))
+			elif(value == -2):
+				self.login()
+			value = self.main()
+			i+=1
+		print("_______________________________________________________")
+		print("PLACE RESERVEE AVEC SUCCES")
+		print(str(i) + " tour(s)")
 		self.driver.quit()
 
 	def main(self):
-		if self.is_expired:
-			value = self.get_email_link()
-		else:
-			value = self.page_accueil_dpt()
+		value = self.page_accueil_dpt()
 		return value
 
 	def login(self):
+		self.driver.get(self.link_email)
 		sleep(tts_accueil)
 
 	def page_accueil_dpt(self):
@@ -428,7 +425,8 @@ class Bot():
 		self.driver.find_element(By.XPATH, '//*[@id="app"]/div/main/div/div[2]/div/section/div[1]/button').click()
 		self.driver.find_element(By.ID, 'input-70').send_keys('maxime.cauchy93@gmail.com')
 		self.driver.find_element(By.XPATH, '//*[@id="app"]/div[3]/div/div/form/div[2]/button').click()
-		return -4
+		sleep(20)
+		return get_url()
 
 
 def	main():
