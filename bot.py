@@ -1,12 +1,15 @@
 import base64
+from lib2to3.pgen2 import driver
 from random import randint
 import os
+from webbrowser import get
 import cv2
 import io
 from pytesseract import pytesseract
 from PIL import Image,ImageChops
 from selenium import webdriver
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
 import urllib.request
 from config import email_link,log_link,list_keys_dep, matrix_dep_centre, l_month,tts_pageload,tts_notpageload,tts_accueil, list_dep_xpath, month, CAPTCHA_IMAGES
 from time import sleep
@@ -14,7 +17,7 @@ import warnings
 from webdriver_manager.chrome import ChromeDriverManager
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 from selenium.common.exceptions import NoSuchElementException
-#Règle générale : return 1 = succès, return 0 = Réponse captcha (faux) , return -1 = collision avec autre candidat, return -3 = aucune place trouvé , return -2 =Error NoSuchElementException
+#Règle générale : return 1 = succès, return 0 = Réponse captcha (faux) , return -1 = collision avec autre candidat, return -3 = aucune place trouvé , return -2 =Error NoSuchElementException, -4 = new email link
 txt_path = 'Tmp_Image/txt.png'
 merged_path ='Tmp_Image/merged_obj.png'
 merged_clean_path = 'Tmp_Image/merged_clean.png'
@@ -22,31 +25,42 @@ merged_clean_path = 'Tmp_Image/merged_clean.png'
 class Bot():
 	def __init__(self):
 		self.driver = webdriver.Chrome(ChromeDriverManager().install())
-		sleep(tts_pageload)
-		value = -3
-		i=0
-		while(value == -3 or value == -2):
-			print("_____________________NOUVEAU TOUR_______________________")
-			if(i>0 and value != -2):
-				print('')
-				sleep(randint(120,130))
-			elif(value == -2):
-				self.login()
-			value = self.main()
-			i+=1
-		print("_______________________________________________________")
-		print("PLACE RESERVEE AVEC SUCCES")
-		print(str(i) + " tour(s)")
+		self.email = "maxime.cauchy93@gmail.com"
+		self.url_redirect = 'https://beta.interieur.gouv.fr/candilib/candidat-presignup'
+		self.driver.get(log_link)
+		sleep(tts_pageload)#pageload
+		if (self.url_redirect == self.driver.current_url):
+			self.is_expired = True
+			print("Page de login identique à la page de login précédente")
+			self.main()
+		else:
+			self.is_expired = False
+			print("Page de login différente à la page de login précédente")
+			sleep(tts_pageload)
+			value = -3
+			i=0
+			while(value == -3 or value == -2):
+				print("_____________________NOUVEAU TOUR_______________________")
+				if(i>0 and value != -2):
+					print('')
+					sleep(randint(120,130))
+				elif(value == -2):
+					self.login()
+				value = self.main()
+				i+=1
+			print("_______________________________________________________")
+			print("PLACE RESERVEE AVEC SUCCES")
+			print(str(i) + " tour(s)")
 		self.driver.quit()
 
 	def main(self):
-		value = self.page_accueil_dpt()
-		# value = self.get_email_link();
+		if self.is_expired:
+			value = self.get_email_link()
+		else:
+			value = self.page_accueil_dpt()
 		return value
 
 	def login(self):
-		self.driver.get(log_link)
-		# self.driver.get(email_link)
 		sleep(tts_accueil)
 
 	def page_accueil_dpt(self):
@@ -145,7 +159,7 @@ class Bot():
 		sleep(tts_notpageload)
 		#Bouton confirm "JE NE SUIS PAS UN ROBOT" qui mène à l'anti-robot
 		self.driver.find_element(By.XPATH,'//*[@id="app"]/div[1]/main/div/div[2]/div/div[2]/div/div/div/div[2]/div/form/div[1]/div[3]/div/div/button/span').click()
-		sleep(tts_accueil)#chargement long du captcha
+		# sleep(tts_accueil)#chargement long du captcha
 
 	def get_into_horaire(self,l_horaire):
 		sleep(tts_notpageload)#not pageload
@@ -229,7 +243,7 @@ class Bot():
 			value = -1
 			if(retry):
 				self.driver.find_element(By.XPATH,'//*[@id="app"]/div[1]/main/div/div[2]/div/div[2]/div/div/div/div[2]/div/form/div[1]/div[3]/div/div/button').click()
-				sleep(tts_accueil)# CAPCTCHA chargement
+				# sleep(tts_accueil)# CAPCTCHA chargement
 			if(self.driver.find_element(By.XPATH,'//*[@id="app"]/div[1]/main/div/div[2]/div/div[2]/div/div/div/div[2]/div/form/div[1]/div[3]/div/div/div').is_displayed() == False):#SI SOUS MENU CAPTCHA NE S'AFFICHE PAS -> FREEZE JE NE SUIS PAS UN ROBOT
 				#Retour à la page selection horaire
 				self.driver.find_element(By.XPATH,'//*[@id="app"]/div[1]/main/div/div[2]/div/div[2]/div/div/div/div[2]/div/form/div[2]/button[1]').click()
@@ -409,9 +423,13 @@ class Bot():
 			return -2
 		return base64.b64decode(result)
 
-	# def get_email_link(self):
-	# 	self.driver.find_element(By.CLASS_NAME("v-btn v-btn--has-bg theme--light v-size--default t-already-signed-up-button-top")).click()
-	# 	self.driver.find_element(By.ID("input-70")).send_keys("maxime.cauchy93@gmail.com")
+	def get_email_link(self):
+		self.driver.get('https://beta.interieur.gouv.fr/candilib/qu-est-ce-que-candilib')
+		self.driver.find_element(By.XPATH, '//*[@id="app"]/div/main/div/div[2]/div/section/div[1]/button').click()
+		self.driver.find_element(By.ID, 'input-70').send_keys('maxime.cauchy93@gmail.com')
+		self.driver.find_element(By.XPATH, '//*[@id="app"]/div[3]/div/div/form/div[2]/button').click()
+		return -4
+
 
 def	main():
 	Bot()
